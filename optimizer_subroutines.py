@@ -33,7 +33,7 @@ def hadamard_gate_reduction(cd):
         H_vertex = cd.get_vertex_map()[H_gate_id]
         
         if H_vertex.get_gate_name() != 'H':
-            # this happens when a previous rewrite rule changes the gate of a vertex
+            # this happens when a previous rewrite rule changes the gate of a vertex or deletes the vertex
             continue
     
         # rule 1, rule 2
@@ -78,5 +78,14 @@ def hadamard_gate_reduction(cd):
             
                     if bl_v.get_gate_name() == br_v.get_gate_name() == 'H':
                         # bottom wire is correct
-                        
                         # remove the Hadamards and swap the target and control for CNOT
+                        cd.remove_vertex_and_merge(H_vertex)
+                        cd.remove_vertex_and_merge(vertex2) 
+                        cd.remove_vertex_and_merge(bl_v)
+                        cd.remove_vertex_and_merge(br_v)
+
+                        vertex1.set_target(H_target)
+                        vertex1.set_controls([cnot_target])
+
+
+

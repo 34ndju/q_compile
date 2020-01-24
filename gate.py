@@ -1,3 +1,5 @@
+GARBARGE = 'IGNORE_THIS_GATE'
+
 class Gate:
     def __init__(self, text):
         arr = text.split()
@@ -24,4 +26,7 @@ class Gate:
     
     def copy(self):
         return Gate(self.text)
+
+    def delete(self):
+        self.gate_name = GARBAGE
 

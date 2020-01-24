@@ -31,11 +31,31 @@ class Vertex:
         return self.output
 
     def add_input(self, inp):
-        self.input.add(inp)
+        # search for repeats
+        if type(inp) == Vertex:
+            self.input.add(inp)
+        elif type(inp) == list:
+            self.input.append(inp)
 
     def add_output(self, out):
-        self.output.add(out)
+        # search for repeats
+        if type(out) == Vertex:
+            self.output.add(out)
+        elif type(out) == list:
+            self.output.append(out)
 
+    def remove_input(self, inp):
+        self.input.remove(inp)
+
+    def remove_output(self, out):
+        self.output.remove(out)
+
+
+    def set_target(self, target)
+        self.target = target
+
+    def set_controls(self, controls):
+        self.controls = controls
 
 
 class CircuitDAG:
@@ -83,6 +103,24 @@ class CircuitDAG:
         vertex = self.vertex_map[iden]
         inp = vertex.get_input()
         out = vertex.get_output()
+
+        # remove this vertex's references in its neighbors and connect neighbors together
+        for inp_v in inp:
+            inp_v.remove_output(vertex)
+            new_wires = get_all_vertices_on_wires(vertex.get_outputs(), set(inp_v.get_gate_all_qubits()))
+            inp_v.add_output(new_wires)
+            
+        for out_v in out:
+            out_v.remove_input(vertex)
+            new_wires = get_all_vertices_on_wires(vertex.get_inputs(), set(out_v.get_gate_all_qubits()))
+            out_v.add_output(new_wires)
+            
+        vertex.get_gate().delete() # renames the gate name for deletion
+        
+            
+        
+
+
 
         
  
