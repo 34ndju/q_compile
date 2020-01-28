@@ -1,4 +1,4 @@
-from gate import Gate
+from src.gate import Gate
 
 class Vertex:
     def __init__(self, iden, gate):
@@ -51,11 +51,11 @@ class Vertex:
         self.output.remove(out)
 
 
-    def set_target(self, target)
-        self.target = target
+    def set_target(self, target):
+        self.gate.target = target
 
     def set_controls(self, controls):
-        self.controls = controls
+        self.gate.controls = controls
 
 
 class CircuitDAG:
@@ -90,7 +90,7 @@ class CircuitDAG:
 
 
     # type: (List[Vertex], Set[Int]) -> List[Vertex]
-    def get_all_vertices_on_wires(self, vertices, wires)
+    def get_all_vertices_on_wires(self, vertices, wires):
         ret = []
         for vertex in vertices:
             if len(set(vertex.get_gate_all_qubits()).intersection(wires)) > 0:

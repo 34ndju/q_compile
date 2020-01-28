@@ -1,5 +1,5 @@
-from gate import Gate
-from circuit_dag import CircuitDAG, Vertex
+from src.gate import Gate
+from src.circuit_dag import CircuitDAG, Vertex
 
 class Parser:
     def __init__(self):
@@ -18,9 +18,3 @@ class Parser:
         return netlist
             
 
-if __name__ == '__main__':
-    parser = Parser()
-    netlist = parser.get_netlist('circuit_format.txt')
-    
-    circuit_dag = CircuitDAG(5, netlist)
-    import pdb; pdb.set_trace()
