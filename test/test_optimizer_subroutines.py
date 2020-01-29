@@ -111,3 +111,39 @@ def test_hadamard_rule4(parser):
                 assert list(v.get_input())[0].get_gate_name() == 'CNOT'
         
         assert seen == [True, True, True]
+
+def test_hadamard_rule5(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nH 1\nP_dag 1\nCNOT 0 1\nP 1\nH 1\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        hadamard_gate_reduction(cd)
+
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        assert len(vertices) == 3
+
+        seen = [False, False, False]
+        for v in vertices:
+            if v.get_gate_name() == 'P':
+                seen[0] = True
+                assert len(v.get_input()) == 0
+                assert len(v.get_output()) == 1
+                assert list(v.get_output())[0].get_gate_name() == 'CNOT'
+            if v.get_gate_name() == 'CNOT':
+                seen[1] = True
+                assert len(v.get_input()) == 1
+                assert list(v.get_input())[0].get_gate_name() == 'P'
+                assert len(v.get_output()) == 1
+                assert list(v.get_output())[0].get_gate_name() == 'P_dag'
+                assert v.get_gate_target() == 1
+                assert v.get_gate_controls() == [0]
+            if v.get_gate_name() == 'P_dag':
+                seen[2] = True
+                assert len(v.get_output()) == 0
+                assert len(v.get_input()) == 1
+                assert list(v.get_input())[0].get_gate_name() == 'CNOT'
+
+        assert seen == [True, True, True]

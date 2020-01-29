@@ -106,7 +106,7 @@ def hadamard_gate_reduction(cd):
         for vertex1, vertex2 in get_2_vertices_forward(H_vertex):
             if vertex1.get_gate_name() == 'P_dag' and vertex2.get_gate_name() == 'CNOT' and vertex2.get_gate_target() == H_target:
                 for vertex3, vertex4 in get_2_vertices_forward(vertex2):
-                    if vertex3.get_gate_target() == vertex4().get_gate_target() == H_target and vertex3.get_gate_name() == 'P' and vertex4.get_gate_name() == 'H':
+                    if vertex3.get_gate_target() == vertex4.get_gate_target() == H_target and vertex3.get_gate_name() == 'P' and vertex4.get_gate_name() == 'H':
                         # wires are correct
                         cd.remove_vertex_and_merge(H_vertex)
                         cd.remove_vertex_and_merge(vertex4)
