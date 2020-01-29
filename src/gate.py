@@ -1,4 +1,4 @@
-GARBARGE = 'IGNORE_THIS_GATE'
+GARBAGE = 'IGNORE_THIS_GATE'
 
 class Gate:
     def __init__(self, text):

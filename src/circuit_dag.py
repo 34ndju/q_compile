@@ -35,14 +35,14 @@ class Vertex:
         if type(inp) == Vertex:
             self.input.add(inp)
         elif type(inp) == list:
-            self.input.append(inp)
+            self.input.update(inp)
 
     def add_output(self, out):
         # search for repeats
         if type(out) == Vertex:
             self.output.add(out)
         elif type(out) == list:
-            self.output.append(out)
+            self.output.update(out)
 
     def remove_input(self, inp):
         self.input.remove(inp)
@@ -107,14 +107,16 @@ class CircuitDAG:
         # remove this vertex's references in its neighbors and connect neighbors together
         for inp_v in inp:
             inp_v.remove_output(vertex)
-            new_wires = get_all_vertices_on_wires(vertex.get_outputs(), set(inp_v.get_gate_all_qubits()))
+            new_wires = self.get_all_vertices_on_wires(vertex.get_output(), set(inp_v.get_gate_all_qubits()))
             inp_v.add_output(new_wires)
             
         for out_v in out:
             out_v.remove_input(vertex)
-            new_wires = get_all_vertices_on_wires(vertex.get_inputs(), set(out_v.get_gate_all_qubits()))
-            out_v.add_output(new_wires)
-            
+            new_wires = self.get_all_vertices_on_wires(vertex.get_input(), set(out_v.get_gate_all_qubits()))
+            out_v.add_input(new_wires)
+           
+
+        del self.vertex_map[vertex.get_id()]
         vertex.get_gate().delete() # renames the gate name for deletion
         
             

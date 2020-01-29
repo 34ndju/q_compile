@@ -32,7 +32,6 @@ def test_dag_structure(parser):
     with TempDirectory() as d:
         d.write(fn, b'INIT 5\nCNOT 0 2\nH 2\nCCZ 0 3 4\n')
         fullpath = os.path.join(d.path, fn)
-        print(fullpath, type(fullpath))
         nl = parser.get_netlist(fullpath)
 
         cd = CircuitDAG(5, nl)
@@ -55,5 +54,33 @@ def test_dag_structure(parser):
                 assert len(v.get_input()) == 1
                 assert list(v.get_input())[0].get_gate_name() == 'CNOT'
 
+def test_delete_vertex(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 5\nCNOT 0 2\nH 2\nCCZ 0 2 4\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(5, nl)
 
-# TODO delete gates
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        assert len(vertices) == 3
+        for v in vertices:
+            if v.get_gate_name() == 'H':
+                assert len(v.get_input()) == 1
+                assert len(v.get_output()) == 1
+                cd.remove_vertex_and_merge(v.get_id())
+                break
+
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        assert len(vertices) == 2
+        for v in vertices:
+            if v.get_gate_name() == 'CNOT':
+                assert len(v.get_input()) == 0
+                assert len(v.get_output()) == 1
+                assert list(v.get_output())[0].get_gate_name() == 'CCZ'
+            if v.get_gate_name() == 'CCZ':
+                assert len(v.get_output()) == 0
+                assert len(v.get_input()) == 1
+                assert list(v.get_input())[0].get_gate_name() == 'CNOT'
+
+
