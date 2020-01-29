@@ -68,7 +68,7 @@ def test_delete_vertex(parser):
             if v.get_gate_name() == 'H':
                 assert len(v.get_input()) == 1
                 assert len(v.get_output()) == 1
-                cd.remove_vertex_and_merge(v.get_id())
+                cd.remove_vertex_and_merge(v)
                 break
 
         vertices = {v for _,v in cd.get_vertex_map().items()}

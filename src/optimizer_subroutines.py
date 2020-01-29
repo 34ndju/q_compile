@@ -1,6 +1,6 @@
-from circuit_dag import CircuitDAG, Vertex
-from gate import Gate
-from parser import Parser
+from src.circuit_dag import CircuitDAG, Vertex
+from src.gate import Gate
+from src.parser import Parser
 from queue import Queue
 
 GARBAGE = 'IGNORE_THIS_GATE'
@@ -21,7 +21,7 @@ def get_2_vertices_forward(v):
         for vertex2 in vertex1.get_output():
             yield vertex1, vertex2
 
-# type: (CirctuitDAG) -> CircuitDAG
+# type: (CirctuitDAG) -> None
 def hadamard_gate_reduction(cd):
     q = Queue()
     H_gate_ids = cd.collect_gate_ids('H')  # type: set
@@ -30,9 +30,9 @@ def hadamard_gate_reduction(cd):
 
     while not q.empty():
         H_gate_id = q.get()
-        H_vertex = cd.get_vertex_map()[H_gate_id]
-        
-        if H_vertex.get_gate_name() != 'H':
+        H_vertex = cd.get_vertex_map().get(H_gate_id, None)
+
+        if H_vertex is None or H_vertex.get_gate_name() != 'H':
             # this happens when a previous rewrite rule changes the gate of a vertex or deletes the vertex
             continue
     
@@ -65,16 +65,18 @@ def hadamard_gate_reduction(cd):
                     assert cnot_target != H_target
                     
                     # bottom-left
-                    if inp[0].get_gate_target() == cnot_target:
-                        bl_v = inp[0]
+                    list_inp = list(inp)
+                    if list_inp[0].get_gate_target() == cnot_target:
+                        bl_v = list_inp[0]
                     else:
-                        bl_v = inp[1]
+                        bl_v = list_inp[1]
 
                     # bottom-right
-                    if out[0].get_gate_target() == cnot_target:
-                        br_v = out[0]
+                    list_out = list(out)
+                    if list_out[0].get_gate_target() == cnot_target:
+                        br_v = list_out[0]
                     else:
-                        br_v = out[1]
+                        br_v = list_out[1]
             
                     if bl_v.get_gate_name() == br_v.get_gate_name() == 'H':
                         # bottom wire is correct
@@ -86,6 +88,32 @@ def hadamard_gate_reduction(cd):
 
                         vertex1.set_target(H_target)
                         vertex1.set_controls([cnot_target])
+                        break
+
+        # rule 4
+        for vertex1, vertex2 in get_2_vertices_forward(H_vertex):
+            if vertex1.get_gate_name() == 'P' and vertex2.get_gate_name() == 'CNOT' and vertex2.get_gate_target() == H_target:
+                for vertex3, vertex4 in get_2_vertices_forward(vertex2):
+                    if vertex3.get_gate_target() == vertex4.get_gate_target() == H_target and vertex3.get_gate_name() == 'P_dag' and vertex4.get_gate_name() == 'H':
+                        # wires are correct
+                        cd.remove_vertex_and_merge(H_vertex)
+                        cd.remove_vertex_and_merge(vertex4)
+                        vertex1.set_gate_name('P_dag')
+                        vertex3.set_gate_name('P')
+                        break
+
+        # rule 5
+        for vertex1, vertex2 in get_2_vertices_forward(H_vertex):
+            if vertex1.get_gate_name() == 'P_dag' and vertex2.get_gate_name() == 'CNOT' and vertex2.get_gate_target() == H_target:
+                for vertex3, vertex4 in get_2_vertices_forward(vertex2):
+                    if vertex3.get_gate_target() == vertex4().get_gate_target() == H_target and vertex3.get_gate_name() == 'P' and vertex4.get_gate_name() == 'H':
+                        # wires are correct
+                        cd.remove_vertex_and_merge(H_vertex)
+                        cd.remove_vertex_and_merge(vertex4)
+                        vertex1.set_gate_name('P')
+                        vertex3.set_gate_name('P_dag')
+                        break
+
 
 
 

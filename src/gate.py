@@ -9,7 +9,7 @@ class Gate:
         self.controls = [int(a) for a in arr[1:-1]] if len(arr) > 2 else []
         self.all_qubits = [int(a) for a in arr[1:]]
 
-    def set_gate_name(self, name):
+    def set_name(self, name):
         self.gate_name = name
 
     def get_name(self):

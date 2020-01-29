@@ -17,8 +17,14 @@ class Vertex:
     def get_gate_target(self):
         return self.gate.get_target()
 
+    def get_gate_controls(self):
+        return self.gate.get_controls()
+
     def get_gate_name(self):
         return self.gate.get_name()
+
+    def set_gate_name(self, new_name):
+        self.gate.set_name(new_name)
 
     # type: (None) -> List[Int]
     def get_gate_all_qubits(self):
@@ -98,9 +104,9 @@ class CircuitDAG:
         return ret
         
 
-    # TODO test
-    def remove_vertex_and_merge(self, iden):
-        vertex = self.vertex_map[iden]
+    # type: (Vertex) -> None
+    def remove_vertex_and_merge(self, vertex):
+        iden = vertex.get_id()
         inp = vertex.get_input()
         out = vertex.get_output()
 
