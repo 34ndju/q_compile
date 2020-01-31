@@ -2,4 +2,4 @@ INIT 4
 CNOT 0 2
 H 2
 CCZ 0 3 4
-
+R_z 0.34 4

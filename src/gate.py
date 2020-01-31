@@ -5,9 +5,24 @@ class Gate:
         arr = text.split()
         self.text = text
         self.gate_name = arr[0]
-        self.target = int(arr[-1])
-        self.controls = [int(a) for a in arr[1:-1]] if len(arr) > 2 else []
-        self.all_qubits = [int(a) for a in arr[1:]]
+
+        if self.gate_name == 'R_z':
+            assert len(arr) == 3
+            self.theta = int(arr[1])
+            self.target = int(arr[2])
+            self.controls = []
+            self.all_qubits = [self.target]
+        else:
+            self.theta = None
+            self.target = int(arr[-1])
+            self.controls = [int(a) for a in arr[1:-1]] if len(arr) > 2 else []
+            self.all_qubits = [int(a) for a in arr[1:]]
+
+    def get_theta(self):
+        return self.theta
+
+    def set_theta(self, theta):
+        self.theta = theta
 
     def set_name(self, name):
         self.gate_name = name

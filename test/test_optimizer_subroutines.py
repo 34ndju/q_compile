@@ -13,6 +13,86 @@ def parser():
     return Parser()
 
 
+def test_swap_two_vertices_one_qubit(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 1\nH 0\nP_dag 0\nP 0\nH_dag 0\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(1, nl)
+
+        v1,v2,v3,v4 = None, None, None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'H':
+                v1 = v
+            if v.get_gate_name() == 'P_dag':
+                v2 = v
+            if v.get_gate_name() == 'P':
+                v3 = v
+            if v.get_gate_name() == 'H_dag':
+                v4 = v
+
+        assert v1 != None and v2 != None and v3 != None and v4 != None
+
+        swap_2_vertex_neighbors(v2, v3)
+
+        assert len(v1.get_input()) == 0
+        assert len(v1.get_output()) == 1
+        assert list(v1.get_output())[0] == v3
+
+        assert len(v2.get_input()) == 1
+        assert list(v2.get_input())[0] == v3
+        assert len(v2.get_output()) == 1
+        assert list(v2.get_output())[0] == v4
+
+        assert len(v3.get_input()) == 1
+        assert list(v3.get_input())[0] == v1
+        assert len(v3.get_output()) == 1
+        assert list(v3.get_output())[0] == v2
+
+        assert len(v4.get_input()) == 1
+        assert list(v4.get_input())[0] == v2
+        assert len(v4.get_output()) == 0
+    
+def test_swap_two_vertices_left_barrier(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 3\nCX 0 2\nCY 1 2\nCZ 0 2\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(3, nl)
+
+        v1,v2,v3 = None, None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'CX':
+                v1 = v
+            if v.get_gate_name() == 'CY':
+                v2 = v
+            if v.get_gate_name() == 'CZ':
+                v3 = v
+
+        assert v1 != None and v2 != None and v3 != None
+
+        assert len(v1.get_output()) == 2
+
+        swap_2_vertex_neighbors(v2, v3)
+
+        assert len(v1.get_output()) == 1
+        assert list(v1.get_output())[0] == v3
+
+        assert len(v3.get_input()) == 1
+        assert list(v3.get_input())[0] == v1
+        assert len(v3.get_output()) == 1
+        assert list(v3.get_output())[0] == v2
+
+        assert len(v2.get_input()) == 1
+        assert list(v2.get_input())[0] == v3
+        
+    
+
+
 def test_hadamard_rule1(parser):
     fn = 'test_circ.txt'
     with TempDirectory() as d:

@@ -1,4 +1,4 @@
-from src.circuit_dag import CircuitDAG, Vertex
+from src.circuit_dag import CircuitDAG, Vertex, get_all_vertices_on_wires
 from src.gate import Gate
 from src.parser import Parser
 from queue import Queue
@@ -20,6 +20,40 @@ def get_2_vertices_forward(v):
     for vertex1 in v.get_output():
         for vertex2 in vertex1.get_output():
             yield vertex1, vertex2
+
+# type: (Vertex, Vertex) -> None
+def swap_2_vertex_neighbors(v1, v2):
+    # v1 is to the left of v2
+    assert v2 in v1.get_output()
+    assert v1 in v2.get_input()
+    v1.remove_output(v2)
+    v2.remove_input(v1)
+
+    v1_wires = set(v1.get_gate_all_qubits())  
+    v2_wires = set(v2.get_gate_all_qubits())
+
+    v2_new_predecessors = get_all_vertices_on_wires(v1.get_input(), v2_wires)
+    for v in v2_new_predecessors:
+        # v has 1+ wires that host both v1 and v2
+        v.add_output(v2)
+        v2.add_input(v)
+        if len(set(v.get_gate_all_qubits()).difference(set(v2.get_gate_all_qubits())).intersection(set(v1.get_gate_all_qubits()))) == 0:
+            # when v1 and v2 swap, v2 will completely barricade v from v1
+            v.remove_output(v1)
+            v1.remove_input(v)
+
+    v1_new_children = get_all_vertices_on_wires(v2.get_output(), v1_wires)
+    for v in v1_new_children:
+        v.add_input(v1)
+        v1.add_output(v)
+        if len(set(v.get_gate_all_qubits()).difference(set(v1.get_gate_all_qubits())).intersection(set(v2.get_gate_all_qubits()))) == 0:
+            # barrier
+            v.remove_input(v2)
+            v2.remove_output(v)
+
+    v1.add_input(v2)
+    v2.add_output(v1)
+
 
 # type: (CirctuitDAG) -> None
 def hadamard_gate_reduction(cd):
@@ -113,7 +147,6 @@ def hadamard_gate_reduction(cd):
                         vertex1.set_gate_name('P')
                         vertex3.set_gate_name('P_dag')
                         break
-
 
 
 

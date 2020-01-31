@@ -40,14 +40,14 @@ class Vertex:
         # search for repeats
         if type(inp) == Vertex:
             self.input.add(inp)
-        elif type(inp) == list:
+        else: 
             self.input.update(inp)
 
     def add_output(self, out):
         # search for repeats
         if type(out) == Vertex:
             self.output.add(out)
-        elif type(out) == list:
+        else:
             self.output.update(out)
 
     def remove_input(self, inp):
@@ -62,6 +62,15 @@ class Vertex:
 
     def set_controls(self, controls):
         self.gate.controls = controls
+
+
+# type: (Iterable[Vertex], Set[Int]) -> List[Vertex]
+def get_all_vertices_on_wires(vertices, wires):
+    ret = []
+    for vertex in vertices:
+        if len(set(vertex.get_gate_all_qubits()).intersection(wires)) > 0:
+            ret.append(vertex)
+    return ret
 
 
 class CircuitDAG:
@@ -95,14 +104,6 @@ class CircuitDAG:
         return ids
 
 
-    # type: (List[Vertex], Set[Int]) -> List[Vertex]
-    def get_all_vertices_on_wires(self, vertices, wires):
-        ret = []
-        for vertex in vertices:
-            if len(set(vertex.get_gate_all_qubits()).intersection(wires)) > 0:
-                ret.append(vertex)
-        return ret
-        
 
     # type: (Vertex) -> None
     def remove_vertex_and_merge(self, vertex):
@@ -113,12 +114,12 @@ class CircuitDAG:
         # remove this vertex's references in its neighbors and connect neighbors together
         for inp_v in inp:
             inp_v.remove_output(vertex)
-            new_wires = self.get_all_vertices_on_wires(vertex.get_output(), set(inp_v.get_gate_all_qubits()))
+            new_wires = get_all_vertices_on_wires(vertex.get_output(), set(inp_v.get_gate_all_qubits()))
             inp_v.add_output(new_wires)
             
         for out_v in out:
             out_v.remove_input(vertex)
-            new_wires = self.get_all_vertices_on_wires(vertex.get_input(), set(out_v.get_gate_all_qubits()))
+            new_wires = get_all_vertices_on_wires(vertex.get_input(), set(out_v.get_gate_all_qubits()))
             out_v.add_input(new_wires)
            
 
