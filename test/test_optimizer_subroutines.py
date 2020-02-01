@@ -90,7 +90,45 @@ def test_swap_two_vertices_left_barrier(parser):
         assert len(v2.get_input()) == 1
         assert list(v2.get_input())[0] == v3
         
-    
+
+def test_swap_two_vertices_left_leak_right_barrier(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 3\nCCX 0 1 2\nCCY 0 1 2\nCNOT 0 2\nCCZ 0 1 2')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(3, nl)
+
+        v1,v2,v3,v4 = None, None, None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'CCX':
+                v1 = v
+            if v.get_gate_name() == 'CCY':
+                v2 = v
+            if v.get_gate_name() == 'CNOT':
+                v3 = v
+            if v.get_gate_name() == 'CCZ':
+                v4 = v
+
+        assert v1 != None and v2 != None and v3 != None and v4 != None
+
+        swap_2_vertex_neighbors(v2, v3)
+
+        assert len(v1.get_output()) == 2
+        assert v1.get_output() == {v2, v3}
+
+        assert len(v3.get_input()) == 1
+        assert list(v3.get_input())[0] == v1
+        assert len(v3.get_output()) == 1
+        assert list(v3.get_output())[0] == v2
+
+        assert len(v2.get_input()) == 2
+        assert v2.get_input() == {v1, v3}
+        assert v2.get_output() == {v4}
+
+        assert v4.get_input() == {v2}
+        assert len(v4.get_output()) == 0
 
 
 def test_hadamard_rule1(parser):
