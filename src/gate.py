@@ -44,4 +44,3 @@ class Gate:
 
     def delete(self):
         self.gate_name = GARBAGE
-

@@ -150,3 +150,59 @@ def hadamard_gate_reduction(cd):
 
 
 
+# type: (CircuitDAG, Vertex) -> Bool
+# returns True is successfuly cummuted, returns false otherwise
+def single_R_z_commute(v):
+    assert v.get_gate_name() == 'R_z'
+
+    v_wire = v.get_gate_target()
+    v1 = list(v.get_output())[0]
+    
+    # rule 1
+    if v1.get_gate_name() == 'H':
+        v2 = list(v1.get_output())[0]
+        if v2.get_gate_name() == 'CNOT' and v2.get_gate_target() == v_wire:
+            v3 = None
+            for v_cand in v2.get_output():
+                if v_cand.get_gate_all_qubits() == [v_wire] and v_cand.get_gate_name() == 'H':
+                    v3 = v_cand
+            if v3 is not None:
+                swap_2_vertex_neighbors(v, v1)
+                swap_2_vertex_neighbors(v, v2)
+                swap_2_vertex_neighbors(v, v3)
+                return True
+
+    # rule 2
+    if v1.get_gate_name() == 'CNOT' and v1.get_gate_target() == v_wire:
+        control_wire = v1.get_gate_controls()[0]
+        v2 = None
+        for v_cand in v1.get_output():
+            if v_cand.get_gate_all_qubits() == [v_wire] and v_cand.get_gate_name() == 'R_z':
+                v2 = v_cand
+        if v2 is not None:
+            v3 = list(v2.get_output())[0]
+            if v3.get_gate_name() == 'CNOT' and v3.get_gate_target() == v_wire and v3.get_gate_controls() == [control_wire]:
+                swap_2_vertex_neighbors(v, v1)
+                swap_2_vertex_neighbors(v, v2)
+                swap_2_vertex_neighbors(v, v3)
+                return True
+
+    # rule 3
+    if v1.get_gate_name() == 'CNOT' and v1.get_gate_controls() == [v_wire]:
+        swap_2_vertex_neighbors(v, v1)
+        return True
+
+    return False
+    
+# TODO
+def find_R_z_combination(cd, v):
+    assert v.get_gate_name() == 'R_z'
+    # make deep copy, then find combinations
+    pass
+    
+    
+# TODO
+# type: (CircuitDAG) -> None
+def single_qubit_gate_cancellation(cd):
+    pass
+ 

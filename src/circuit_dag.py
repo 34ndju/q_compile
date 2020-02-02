@@ -5,7 +5,7 @@ class Vertex:
         self.gate = gate
         self.iden = iden
         self.input = set() # type: Set[Vertex]
-        self.output = set() # type: Set[Vertex]
+        self.output = set() #  type: Set[Vertex]
 
     def get_id(self):
         return self.iden
@@ -63,6 +63,21 @@ class Vertex:
     def set_controls(self, controls):
         self.gate.controls = controls
 
+    def is_dagger_to(v):
+        if v.get_gate_name().find('_dag') > -1 and self.get_gate_name().find('_dag') == -1:
+            dag_gate = v
+            undag_gate = self
+        elif self.get_gate_name().find('_dag') > -1 and c.get_gate_name().find('_dag') == -1:
+            dag_gate = self
+            undag_gate = v
+        else:
+            return False
+
+        dag_gate_name = "".join(dag_gate.get_gate_name().split('_dag'))
+        undag_gate_name = undag.get_gate_name()
+
+        return dag_gate_name == undag_gate_name 
+
 
 # type: (Iterable[Vertex], Set[Int]) -> List[Vertex]
 def get_all_vertices_on_wires(vertices, wires):
@@ -76,7 +91,8 @@ def get_all_vertices_on_wires(vertices, wires):
 class CircuitDAG:
     def __init__(self, num_qubits, netlist):
         self.vertex_map = {}
-        
+        self.num_qubits = num_qubits
+
         lru_qubits = [-1] * num_qubits
         for i, gate in enumerate(netlist):
             vertex = Vertex(i, gate.copy())
@@ -104,7 +120,6 @@ class CircuitDAG:
         return ids
 
 
-
     # type: (Vertex) -> None
     def remove_vertex_and_merge(self, vertex):
         iden = vertex.get_id()
@@ -125,6 +140,11 @@ class CircuitDAG:
 
         del self.vertex_map[vertex.get_id()]
         vertex.get_gate().delete() # renames the gate name for deletion
+
+    # TODO
+    # type (None) -> CircuitDAG
+    def copy():
+        
         
             
         

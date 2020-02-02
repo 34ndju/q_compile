@@ -13,6 +13,122 @@ def parser():
     return Parser()
 
 
+def test_R_z_commute_rule1(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nR_z 123 1\nH 1\nCNOT 0 1\nH 1\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        v1,v2,v3,v4 = None, None, None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'R_z':
+                v1 = v
+            if v.get_gate_name() == 'H' and list(v.get_input())[0].get_gate_name() == 'R_z':
+                v2 = v
+            if v.get_gate_name() == 'CNOT':
+                v3 = v
+            if v.get_gate_name() == 'H' and list(v.get_input())[0].get_gate_name() != 'R_z':
+                v4 = v
+        assert v1 is not None and v2 is not None and v3 is not None and v4 is not None
+        
+        assert single_R_z_commute(v1) 
+
+        assert v2.get_input() == set()
+        assert v2.get_output() == {v3}
+        assert v3.get_input() == {v2}
+        assert v3.get_output() == {v4}
+        assert v4.get_input() == {v3}
+        assert v4.get_output() == {v1}
+        assert v1.get_input() == {v4}
+        assert v1.get_output() == set()
+
+
+def test_R_z_commute_rule2(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nR_z 123 1\nCNOT 0 1\nR_z 456 1\nCNOT 0 1\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        v1,v2,v3,v4 = None, None, None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'R_z' and v.get_input() == set():
+                v1 = v
+            if v.get_gate_name() == 'CNOT' and v.get_output() != set():
+                v2 = v
+            if v.get_gate_name() == 'R_z' and v.get_input() != set():
+                v3 = v
+            if v.get_gate_name() == 'CNOT' and v.get_output() == set():
+                v4 = v
+        assert v1 is not None and v2 is not None and v3 is not None and v4 is not None
+
+        assert single_R_z_commute(v1)
+
+        assert v2.get_input() == set()
+        assert v2.get_output() == {v3, v4}
+        assert v3.get_input() == {v2}
+        assert v3.get_output() == {v4}
+        assert v4.get_input() == {v2, v3}
+        assert v4.get_output() == {v1}
+        assert v1.get_input() == {v4}
+        assert v1.get_output() == set()
+
+
+def test_R_z_commute_rule3(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nR_z 123 0\nCNOT 0 1\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        v1,v2 = None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'R_z':
+                v1 = v
+            if v.get_gate_name() == 'CNOT':
+                v2 = v
+        assert v1 is not None and v2 is not None 
+
+        assert single_R_z_commute(v1)
+
+        assert v2.get_input() == set()
+        assert v2.get_output() == {v1}
+        assert v1.get_input() == {v2}
+        assert v1.get_output() == set()
+
+def test_swap_only_vertices_one_qubit(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 1\nH 0\nP 0\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(1, nl)
+
+        v1,v2 = None, None
+        vertices = {v for _,v in cd.get_vertex_map().items()}
+        for v in vertices:
+            if v.get_gate_name() == 'H':
+                v1 = v
+            if v.get_gate_name() == 'P':
+                v2 = v
+
+        assert v1 != None and v2 != None 
+
+        swap_2_vertex_neighbors(v1, v2)
+        
+        assert v2.get_input() == set()
+        assert v2.get_output() == {v1}
+
+        assert v1.get_input() == {v2}
+        assert v1.get_output() == set()
+
 def test_swap_two_vertices_one_qubit(parser):
     fn = 'test_circ.txt'
     with TempDirectory() as d:
