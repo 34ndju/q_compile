@@ -13,6 +13,8 @@ def parser():
     return Parser()
 
 
+FLOAT_DELTA = 0.0000000001
+
 def test_R_z_commute_rule1(parser):
     fn = 'test_circ.txt'
     with TempDirectory() as d:
@@ -255,7 +257,7 @@ def test_hadamard_rule1(parser):
         nl = parser.get_netlist(fullpath)
         cd = CircuitDAG(1, nl)
 
-        hadamard_gate_reduction(cd)
+        cd = hadamard_gate_reduction(cd)
 
         vertices = {v for _,v in cd.get_vertex_map().items()}
         assert len(vertices) == 3
@@ -277,7 +279,7 @@ def test_hadamard_rule2(parser):
         nl = parser.get_netlist(fullpath)
         cd = CircuitDAG(1, nl)
 
-        hadamard_gate_reduction(cd)
+        cd = hadamard_gate_reduction(cd)
 
         vertices = {v for _,v in cd.get_vertex_map().items()}
         assert len(vertices) == 3
@@ -299,7 +301,7 @@ def test_hadamard_rule3(parser):
         nl = parser.get_netlist(fullpath)
         cd = CircuitDAG(2, nl)
 
-        hadamard_gate_reduction(cd)
+        cd = hadamard_gate_reduction(cd)
 
         vertices = {v for _,v in cd.get_vertex_map().items()}
         assert len(vertices) == 1
@@ -318,7 +320,7 @@ def test_hadamard_rule4(parser):
         nl = parser.get_netlist(fullpath)
         cd = CircuitDAG(2, nl)
 
-        hadamard_gate_reduction(cd)
+        cd = hadamard_gate_reduction(cd)
 
         vertices = {v for _,v in cd.get_vertex_map().items()}
         assert len(vertices) == 3
@@ -354,7 +356,7 @@ def test_hadamard_rule5(parser):
         nl = parser.get_netlist(fullpath)
         cd = CircuitDAG(2, nl)
 
-        hadamard_gate_reduction(cd)
+        cd = hadamard_gate_reduction(cd)
 
         vertices = {v for _,v in cd.get_vertex_map().items()}
         assert len(vertices) == 3
@@ -381,3 +383,143 @@ def test_hadamard_rule5(parser):
                 assert list(v.get_input())[0].get_gate_name() == 'CNOT'
 
         assert seen == [True, True, True]
+
+def test_cd_to_netlist(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nCNOT 0 1\nX 1\nCZ 1 0\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        new_nl = circuit_dag_to_netlist(cd)
+
+        assert new_nl == nl        
+
+def test_commute_R_z_combination(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nR_z 3 0\nCNOT 0 1\nCNOT 0 1\nCNOT 0 1\nR_z 2 0\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        v_target = None
+        for _,v in cd.get_vertex_map().items():
+            if v.get_gate_name() == 'R_z' and abs(v.get_gate().get_theta() - 3.0) < FLOAT_DELTA:
+                v_target = v
+
+        assert not v_target is None
+
+        cd = find_R_z_combination(cd, v_target)
+        nl = circuit_dag_to_netlist(cd)
+
+        assert nl[0].get_name() == 'CNOT'
+        assert nl[1].get_name() == 'CNOT'
+        assert nl[2].get_name() == 'CNOT'
+        assert nl[3].get_name() == 'R_z'
+        assert abs(nl[3].get_theta() - 5.0) < FLOAT_DELTA
+
+
+def test_no_R_z_combination(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 2\nR_z 3 0\nCNOT 0 1\nCZ 0 1\nCNOT 0 1\nR_z 2 0\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(2, nl)
+
+        v_target = None
+        for _,v in cd.get_vertex_map().items():
+            if v.get_gate_name() == 'R_z' and abs(v.get_gate().get_theta() - 3.0) < FLOAT_DELTA:
+                v_target = v
+
+        assert not v_target is None
+
+        cd = find_R_z_combination(cd, v_target)
+        new_nl = circuit_dag_to_netlist(cd)
+
+        assert new_nl == nl
+
+
+def test_commute_cnot_combination(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 3\n\nCNOT 0 2\nCNOT 1 2\nCNOT 0 2\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(3, nl)
+
+        v_target = None
+        for _,v in cd.get_vertex_map().items():
+            if len(v.get_input()) == 0:
+                v_target = v
+
+        assert not v_target is None
+
+        cd = find_cnot_combination(cd, v_target)
+        nl = circuit_dag_to_netlist(cd)
+
+        assert len(nl) == 1
+        assert nl[0].get_controls() == [1]
+
+def test_hard_swaps_combination(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 3\n\nC1 0 1\nH1 1\nC2 1 2\nH2 1\nC3 0 2\nC4 0 1\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(3, nl)
+
+        v_target = None
+
+        for _,v in cd.get_vertex_map().items():
+            if v.get_gate_name() == 'C1':
+                v1 = v
+            if v.get_gate_name() == 'H1':
+                v2 = v
+            if v.get_gate_name() == 'C2':
+                v3 = v
+            if v.get_gate_name() == 'H2':
+                v4 = v
+            if v.get_gate_name() == 'C3':
+                v5 = v
+            if v.get_gate_name() == 'C4':
+                v6 = v
+
+        assert len(v1.get_output()) == 2
+        swap_2_vertex_neighbors(v1, v2)
+        assert len(v1.get_output()) == 2
+        swap_2_vertex_neighbors(v1, v3)
+        assert len(v1.get_output()) == 2
+        swap_2_vertex_neighbors(v1, v4)
+        assert len(v1.get_output()) == 2
+        swap_2_vertex_neighbors(v1, v5)
+        assert len(v1.get_output()) == 1
+        swap_2_vertex_neighbors(v1, v6)
+        assert len(v1.get_output()) == 0
+
+
+
+
+def test_hard_commute_cnot_combination(parser):
+    fn = 'test_circ.txt'
+    with TempDirectory() as d:
+        d.write(fn, b'INIT 3\n\nCNOT 0 1\nH 1\nCNOT 1 2\nH 1\nCNOT 2 1\nCNOT 0 1\n')
+        fullpath = os.path.join(d.path, fn)
+        nl = parser.get_netlist(fullpath)
+        cd = CircuitDAG(3, nl)
+
+        v_target = None
+
+        for _,v in cd.get_vertex_map().items():
+            if v.get_gate_name() == 'CNOT' and len(v.get_input()) == 0:
+                v_target = v
+                
+        assert v_target is not None
+
+        cd = find_cnot_combination(cd, v_target)
+        new_nl = circuit_dag_to_netlist(cd)
+
+        assert len(new_nl) == 4
+        assert new_nl == nl[1:-1]

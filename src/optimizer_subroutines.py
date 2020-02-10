@@ -5,12 +5,36 @@ from queue import Queue
 
 GARBAGE = 'IGNORE_THIS_GATE'
 
+def topological_sort_help(v, visited, stack):
+    visited.add(v.get_id())
+
+    for v_neighbor in v.get_output():
+        if not v_neighbor.get_id() in visited:
+            topological_sort_help(v_neighbor, visited, stack)
+
+
+    stack.insert(0, v)
+
+def topological_sort(cd):
+    v_map = cd.get_vertex_map()
+    visited = set()
+    stack = []
+
+    for _,v in v_map.items():
+        if not v.get_id() in visited:
+            topological_sort_help(v, visited, stack) 
+
+    return stack
+    
 def circuit_dag_to_netlist(cd):
-    netlsit = []
-    for iden, vertex in cd.get_vertex_map().items():
-        netlist.append(vertex.get_gate().copy())
+    netlist = []
+
+    top_sort_dag = topological_sort(cd)
+    for v in top_sort_dag:
+        netlist.append(v.get_gate().copy())
 
     return netlist
+
 
 def netlist_to_circuit_dag(num_qubits, netlist):
     return CircuitDAG(num_qubits, netlist)
@@ -55,7 +79,7 @@ def swap_2_vertex_neighbors(v1, v2):
     v2.add_output(v1)
 
 
-# type: (CirctuitDAG) -> None
+# type: (CirctuitDAG) -> CircuitDAG
 def hadamard_gate_reduction(cd):
     q = Queue()
     H_gate_ids = cd.collect_gate_ids('H')  # type: set
@@ -148,6 +172,8 @@ def hadamard_gate_reduction(cd):
                         vertex3.set_gate_name('P_dag')
                         break
 
+        return cd
+
 
 
 # type: (CircuitDAG, Vertex) -> Bool
@@ -194,15 +220,124 @@ def single_R_z_commute(v):
 
     return False
     
-# TODO
+def rotation_merge(cd, v):
+    if len(v.get_output()) == 1 and list(v.get_output())[0].get_gate_name() == 'R_z':
+        next_R_z = list(v.get_output())[0]
+        next_R_z_theta = next_R_z.get_gate().get_theta()
+        new_theta = v.get_gate().get_theta() + next_R_z_theta
+        v.get_gate().set_theta(new_theta)
+        cd.remove_vertex_and_merge(next_R_z)
+        return True
+    return False
+
+def exists_path_to_vertex(v, end_v):
+    if v == end_v:
+        return True
+
+    for v_neighbor in v.get_output():
+        if exists_path_to_vertex(v_neighbor, end_v):
+            return True
+
+    return False
+
+
+def single_cnot_commute(v):
+    assert v.get_gate_name() == 'CNOT'
+
+    # rule 1, 2
+    for v1 in v.get_output():
+        if v1.get_gate_name() == 'CNOT':
+            # rule 1
+            if v.get_gate_controls() != v1.get_gate_controls() and v.get_gate_target() == v1.get_gate_target():
+                other_vertex = None
+                control_wire = v.get_gate_controls()[0]
+                for v_other in v.get_output():
+                    if control_wire in set(v_other.get_gate_all_qubits()):
+                        other_vertex = v_other
+                        break
+                if other_vertex is None or not exists_path_to_vertex(other_vertex, v1):
+                    swap_2_vertex_neighbors(v, v1)
+                    return True
+
+            # rule 2
+            if v.get_gate_controls() == v1.get_gate_controls() and v.get_gate_target() != v1.get_gate_target():
+                other_vertex = None
+                target_wire = v.get_gate_target()
+                for v_other in v.get_output():
+                    if target_wire in set(v_other.get_gate_all_qubits()):
+                        other_vertex = v_other
+                        break
+                if other_vertex is None or not exists_path_to_vertex(other_vertex, v1):
+                    swap_2_vertex_neighbors(v, v1)
+                    return True
+
+    # rule 3
+    for v1, v2 in get_2_vertices_forward(v):
+        if v1.get_gate_name() == 'H' and v1.get_gate_target() == v.get_gate_target():
+            if v2.get_gate_name() == 'CNOT' and v2.get_gate_controls() == [v.get_gate_target()] and [v2.get_gate_target()] != v.get_gate_controls():
+                for v3 in v2.get_output():
+                    if v3.get_gate_name() == 'H' and v2.get_gate_controls() == [v3.get_gate_target()]:
+                        swap_2_vertex_neighbors(v,v1)
+                        swap_2_vertex_neighbors(v,v2)
+                        swap_2_vertex_neighbors(v,v3)
+                        return True
+
+    return False
+
+def cnot_merge(cd, v):
+    assert v.get_gate_name() == 'CNOT'
+    list_out = list(v.get_output())
+    
+    if len(list_out) == 1 and list_out[0].get_gate_name() == 'CNOT' and list_out[0].get_gate_target() == v.get_gate_target() and list_out[0].get_gate_controls() == v.get_gate_controls():
+        next_cnot = list_out[0]
+        cd.remove_vertex_and_merge(next_cnot)
+        cd.remove_vertex_and_merge(v)
+        return True
+    return False
+
+
+def find_cnot_combination(cd, v):
+    assert v.get_gate_name() == 'CNOT'
+
+    snapshot_nl = circuit_dag_to_netlist(cd)
+    if cnot_merge(cd, v):
+        return cd
+
+    while single_cnot_commute(v):
+        if cnot_merge(cd, v):
+            return cd
+
+    snapshot_cd = netlist_to_circuit_dag(cd.get_num_qubits(), snapshot_nl)
+    return snapshot_cd
+
+# type: (CircuitDAG, Vertex) -> CircuitDAG
 def find_R_z_combination(cd, v):
     assert v.get_gate_name() == 'R_z'
     # make deep copy, then find combinations
-    pass
+    snapshot_nl = circuit_dag_to_netlist(cd)
+
+    if rotation_merge(cd, v):
+        return cd
+
+    while single_R_z_commute(v):
+        if rotation_merge(cd, v):
+            return cd
     
-    
-# TODO
-# type: (CircuitDAG) -> None
+    snapshot_cd = netlist_to_circuit_dag(cd.get_num_qubits(), snapshot_nl)
+    return snapshot_cd
+
+
+# TODO do more cancellations than r and cnot after commutations
+# type: (CircuitDAG) -> CircuitDAG
 def single_qubit_gate_cancellation(cd):
-    pass
- 
+    for _,v in cd.get_vertex_map().items():
+        if not v.is_deleted():
+            if v.get_gate_name() == 'R_z':
+                cd = find_R_z_combination(cd, v)
+            if v.get_gate_name() == 'CNOT':
+                cd = find_cnot_combination(cd, v)
+    return cd
+
+
+
+

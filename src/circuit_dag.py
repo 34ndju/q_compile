@@ -78,6 +78,9 @@ class Vertex:
 
         return dag_gate_name == undag_gate_name 
 
+    def is_gate_delted(self):
+        return self.gate.is_deleted()
+
 
 # type: (Iterable[Vertex], Set[Int]) -> List[Vertex]
 def get_all_vertices_on_wires(vertices, wires):
@@ -112,6 +115,9 @@ class CircuitDAG:
         return self.vertex_map
 
 
+    def get_num_qubits(self):
+        return self.num_qubits
+
     def collect_gate_ids(self, gate_name):
         ids = set()
         for iden, vertex in self.vertex_map.items():
@@ -141,10 +147,11 @@ class CircuitDAG:
         del self.vertex_map[vertex.get_id()]
         vertex.get_gate().delete() # renames the gate name for deletion
 
+    '''
     # TODO
     # type (None) -> CircuitDAG
     def copy():
-        
+    ''' 
         
             
         
